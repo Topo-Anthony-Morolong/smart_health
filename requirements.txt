@@ -20,3 +20,9 @@ alembic
 httpx
 
 loguru
+
+joblib
+numpy 
+supabase
+
+pydantic_settings

@@ -1,0 +1,68 @@
+from fastapi import APIRouter, HTTPException, Depends
+from supabase import Client
+from app.schemas.alert import AlertOut
+from app.core.database import get_supabase
+from loguru import logger
+from typing import List
+
+router = APIRouter(prefix="/alerts", tags=["Alerts"])
+
+
+@router.get("/{patient_id}", response_model=List[AlertOut])
+def get_patient_alerts(
+    patient_id: str,
+    unacknowledged_only: bool = False,
+    db: Client = Depends(get_supabase),
+):
+    """Retrieve all alerts for a patient, optionally filtered to unacknowledged only."""
+    try:
+        query = (
+            db.table("alerts")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .order("created_at", desc=True)
+        )
+        if unacknowledged_only:
+            query = query.eq("acknowledged", False)
+        response = query.execute()
+        return response.data
+    except Exception as e:
+        logger.error(f"Error fetching alerts for {patient_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{alert_id}/acknowledge", response_model=AlertOut)
+def acknowledge_alert(alert_id: str, db: Client = Depends(get_supabase)):
+    """Mark an alert as acknowledged by a clinician or patient."""
+    try:
+        response = (
+            db.table("alerts")
+            .update({"acknowledged": True})
+            .eq("id", alert_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error acknowledging alert {alert_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/", response_model=List[AlertOut])
+def get_all_alerts(limit: int = 50, db: Client = Depends(get_supabase)):
+    """Get all recent alerts across all patients (clinician dashboard view)."""
+    try:
+        response = (
+            db.table("alerts")
+            .select("*, patients(name)")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        logger.error(f"Error fetching all alerts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
