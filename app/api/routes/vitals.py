@@ -11,10 +11,6 @@ import uuid
 
 router = APIRouter(prefix="/vitals", tags=["Vitals"])
 
-# Map UI/ML expected string cases to DB constraints
-DB_RISK_MAP = {"Low": "low", "Moderate": "medium", "High": "high"}
-FE_RISK_MAP = {"low": "Low", "medium": "Moderate", "high": "High"}
-
 
 @router.post("/{patient_id}", response_model=VitalReadingOut, status_code=201)
 def submit_vitals(patient_id: str, vitals: VitalReading, db: Client = Depends(get_supabase)):
@@ -32,7 +28,7 @@ def submit_vitals(patient_id: str, vitals: VitalReading, db: Client = Depends(ge
         "id": str(uuid.uuid4()),
         "patient_id": patient_id,
         "risk_score": risk_result["risk_score"],
-        "risk_level": DB_RISK_MAP.get(risk_result["risk_level"], "low"),
+        "risk_level": risk_result["risk_level"],
         "recorded_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -53,9 +49,6 @@ def submit_vitals(patient_id: str, vitals: VitalReading, db: Client = Depends(ge
         vital_data=vital_data,
     )
 
-    # Map risk_level back to frontend format
-    saved["risk_level"] = FE_RISK_MAP.get(saved.get("risk_level"), saved.get("risk_level"))
-
     return {
         **saved,
         "recommendations": risk_result["recommendations"],
@@ -75,10 +68,7 @@ def get_vital_history(patient_id: str, limit: int = 30, db: Client = Depends(get
             .limit(limit)
             .execute()
         )
-        readings = response.data or []
-        for r in readings:
-            r["risk_level"] = FE_RISK_MAP.get(r.get("risk_level"), r.get("risk_level"))
-        return readings
+        return response.data
     except Exception as e:
         logger.error(f"Error fetching vitals for {patient_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

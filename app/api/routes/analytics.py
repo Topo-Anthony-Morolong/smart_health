@@ -23,9 +23,6 @@ def get_analytics(patient_id: str, db: Client = Depends(get_supabase)):
             .execute()
         )
         readings = response.data or []
-        FE_RISK_MAP = {"low": "Low", "medium": "Moderate", "high": "High"}
-        for r in readings:
-            r["risk_level"] = FE_RISK_MAP.get(r.get("risk_level"), r.get("risk_level"))
         return compute_analytics(patient_id, readings)
     except Exception as e:
         logger.error(f"Error computing analytics for {patient_id}: {e}")

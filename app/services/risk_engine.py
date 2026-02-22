@@ -21,21 +21,21 @@ except Exception as e:
 # Clinical recommendation library
 # ---------------------------------------------------------------------------
 RECOMMENDATIONS = {
-    "High": [
+    "high": [
         "🚨 Contact your doctor or care team immediately.",
         "Avoid strenuous physical activity until reviewed by a clinician.",
         "Monitor your readings every 2–4 hours and record them.",
         "Check any prescribed medications are taken on schedule.",
         "If you experience chest pain, dizziness or difficulty breathing call emergency services.",
     ],
-    "Moderate": [
+    "medium": [
         "⚠️ Schedule a check-up with your doctor within the next 3–5 days.",
         "Reduce sodium intake and stay well hydrated.",
         "30 minutes of light exercise (e.g. walking) daily is recommended.",
         "Continue your prescribed medications and do not skip doses.",
         "Monitor readings daily and log any changes.",
     ],
-    "Low": [
+    "low": [
         "✅ Your vitals look stable — keep up the good work!",
         "Maintain a balanced diet with plenty of vegetables and whole grains.",
         "Aim for at least 30 minutes of moderate exercise most days.",
@@ -79,10 +79,10 @@ def calculate_risk(vital_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def _stratify(probability: float) -> str:
     if probability >= 0.7:
-        return "High"
+        return "high"
     elif probability >= 0.4:
-        return "Moderate"
-    return "Low"
+        return "medium"
+    return "low"
 
 
 def _rule_based_fallback(vital_data: Dict[str, Any]) -> Dict[str, Any]:

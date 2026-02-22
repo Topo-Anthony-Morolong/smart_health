@@ -59,7 +59,7 @@ export function PatientRegister() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex flex-col">
             <nav className="px-8 py-5 flex items-center gap-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-                <button onClick={() => navigate('/')} className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"><ArrowLeft className="h-5 w-5" /></button>
+                <button onClick={() => navigate('/')} aria-label="Go back to home" className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"><ArrowLeft className="h-5 w-5" /></button>
                 <div className="flex items-center gap-2.5">
                     <div className="bg-gradient-to-br from-blue-600 to-teal-500 p-2 rounded-xl text-white shadow-md"><Heart className="h-5 w-5" /></div>
                     <span className="text-lg font-bold tracking-tight text-slate-900">Smart<span className="text-blue-600">Health</span></span>
@@ -85,7 +85,7 @@ export function PatientRegister() {
                             ))}
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full transition-all duration-500" style={{ width: step === 1 ? '50%' : '100%' }} />
+                            <div className={`h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full transition-all duration-500 ${step === 1 ? 'w-1/2' : 'w-full'}`} />
                         </div>
                     </div>
 
@@ -206,7 +206,7 @@ function FieldGroup({ title, helpKey, tooltip, setTooltip, help, children }: { t
             <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{title}</p>
                 {help[helpKey] && (
-                    <button onClick={() => setTooltip(tooltip === helpKey ? null : helpKey)} className="text-slate-400 hover:text-blue-500 transition-colors"><HelpCircle className="h-4 w-4" /></button>
+                    <button aria-label={`Help for ${title}`} onClick={() => setTooltip(tooltip === helpKey ? null : helpKey)} className="text-slate-400 hover:text-blue-500 transition-colors"><HelpCircle className="h-4 w-4" /></button>
                 )}
             </div>
             {tooltip === helpKey && help[helpKey] && <HelpCard info={help[helpKey]} />}

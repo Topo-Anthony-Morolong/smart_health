@@ -45,7 +45,7 @@ export function LogVitals() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex flex-col">
             <nav className="px-8 py-5 flex items-center gap-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-                <button onClick={() => navigate(`/my-health/${id}`)} className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"><ArrowLeft className="h-5 w-5" /></button>
+                <button onClick={() => navigate(`/my-health/${id}`)} aria-label="Go back" className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"><ArrowLeft className="h-5 w-5" /></button>
                 <div className="flex items-center gap-2.5">
                     <div className="bg-gradient-to-br from-blue-600 to-teal-500 p-2 rounded-xl text-white shadow-md"><Heart className="h-5 w-5" /></div>
                     <span className="text-lg font-bold tracking-tight text-slate-900">Smart<span className="text-blue-600">Health</span></span>
@@ -98,7 +98,7 @@ function VitalCard({ title, helpKey, tooltip, setTooltip, children }: { title: s
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{title}</p>
-                {info && <button onClick={() => setTooltip(tooltip === helpKey ? null : helpKey)} className="text-slate-400 hover:text-blue-500"><HelpCircle className="h-4 w-4" /></button>}
+                {info && <button aria-label={`Help for ${title}`} onClick={() => setTooltip(tooltip === helpKey ? null : helpKey)} className="text-slate-400 hover:text-blue-500"><HelpCircle className="h-4 w-4" /></button>}
             </div>
             {tooltip === helpKey && info && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 text-xs text-blue-800 space-y-1">

@@ -8,43 +8,53 @@ from loguru import logger
 
 def compute_analytics(patient_id: str, readings: List[Dict]) -> Dict[str, Any]:
     """
-    Given a list of vital readings (newest first), return:
-    - Average values for key vitals
-    - Risk level distribution
-    - Deterioration flag (consecutive risk escalations)
-    - Trend direction per vital (improving / stable / worsening)
+    Given a list of vital readings (newest first), return averages,
+    risk level distribution, deterioration flag, and trend direction.
     """
+    empty_avgs: Dict[str, Optional[float]] = {
+        "blood_pressure_systolic": None,
+        "blood_pressure_diastolic": None,
+        "heart_rate": None,
+        "temperature": None,
+        "oxygen_saturation": None,
+        "risk_score": None,
+    }
+
     if not readings:
-        return {"message": "No readings available yet.", "patient_id": patient_id}
+        return {
+            "patient_id": patient_id,
+            "total_readings": 0,
+            "risk_distribution": {"low": 0, "medium": 0, "high": 0},
+            "averages": empty_avgs,
+            "deteriorating": False,
+            "trend_direction": "Insufficient data",
+            "latest_risk_level": None,
+        }
 
     # Reverse so oldest → newest for trend detection
     ordered = list(reversed(readings))
 
-    avg = _compute_averages(ordered)
-    risk_dist = _risk_distribution(ordered)
-    deteriorating = _detect_deterioration(ordered)
-    trends = _compute_trends(ordered)
-    latest = ordered[-1] if ordered else {}
-
     return {
         "patient_id": patient_id,
         "total_readings": len(ordered),
-        "latest_risk_level": latest.get("risk_level", "Unknown"),
-        "latest_risk_score": latest.get("risk_score"),
-        "averages": avg,
-        "risk_distribution": risk_dist,
-        "deterioration_alert": deteriorating,
-        "trends": trends,
-        "time_range": {
-            "from": ordered[0].get("recorded_at") if ordered else None,
-            "to": ordered[-1].get("recorded_at") if ordered else None,
-        },
+        "risk_distribution": _risk_distribution(ordered),
+        "averages": _compute_averages(ordered),
+        "deteriorating": _detect_deterioration(ordered),
+        "trend_direction": _compute_trend_direction(ordered),
+        "latest_risk_level": ordered[-1].get("risk_level"),
     }
 
 
 def _compute_averages(readings: List[Dict]) -> Dict[str, Optional[float]]:
-    fields = ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic", "temperature", "oxygen_saturation", "risk_score"]
-    result = {}
+    fields = [
+        "heart_rate",
+        "blood_pressure_systolic",
+        "blood_pressure_diastolic",
+        "temperature",
+        "oxygen_saturation",
+        "risk_score",
+    ]
+    result: Dict[str, Optional[float]] = {}
     for field in fields:
         vals = [r[field] for r in readings if r.get(field) is not None]
         result[field] = round(sum(vals) / len(vals), 2) if vals else None
@@ -52,7 +62,7 @@ def _compute_averages(readings: List[Dict]) -> Dict[str, Optional[float]]:
 
 
 def _risk_distribution(readings: List[Dict]) -> Dict[str, int]:
-    dist = {"Low": 0, "Moderate": 0, "High": 0}
+    dist: Dict[str, int] = {"low": 0, "medium": 0, "high": 0}
     for r in readings:
         level = r.get("risk_level")
         if level in dist:
@@ -61,10 +71,7 @@ def _risk_distribution(readings: List[Dict]) -> Dict[str, int]:
 
 
 def _detect_deterioration(readings: List[Dict]) -> bool:
-    """
-    Flag deterioration if the last 3 readings show a monotonic
-    increase in risk score (each reading worse than the previous).
-    """
+    """Flag deterioration if the last 3 readings show monotonically increasing risk scores."""
     if len(readings) < 3:
         return False
     recent = readings[-3:]
@@ -74,31 +81,24 @@ def _detect_deterioration(readings: List[Dict]) -> bool:
     return scores[0] < scores[1] < scores[2]
 
 
-def _compute_trends(readings: List[Dict]) -> Dict[str, str]:
-    """Compare first half average vs second half average for each vital."""
+def _compute_trend_direction(readings: List[Dict]) -> str:
+    """Compare first half vs second half average risk_score to determine direction."""
     if len(readings) < 4:
-        return {}
+        return "Insufficient data"
 
     mid = len(readings) // 2
-    first_half = readings[:mid]
-    second_half = readings[mid:]
+    first_scores = [r["risk_score"] for r in readings[:mid] if r.get("risk_score") is not None]
+    second_scores = [r["risk_score"] for r in readings[mid:] if r.get("risk_score") is not None]
 
-    fields = ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic", "temperature", "oxygen_saturation", "risk_score"]
-    trends = {}
+    if not first_scores or not second_scores:
+        return "Insufficient data"
 
-    for field in fields:
-        v1 = [r[field] for r in first_half if r.get(field) is not None]
-        v2 = [r[field] for r in second_half if r.get(field) is not None]
-        if not v1 or not v2:
-            continue
-        avg1 = sum(v1) / len(v1)
-        avg2 = sum(v2) / len(v2)
-        delta = avg2 - avg1
-        if abs(delta) < 0.02 * avg1:  # <2% change = stable
-            trends[field] = "stable"
-        elif delta > 0:
-            trends[field] = "worsening"
-        else:
-            trends[field] = "improving"
+    avg1 = sum(first_scores) / len(first_scores)
+    avg2 = sum(second_scores) / len(second_scores)
+    delta = avg2 - avg1
 
-    return trends
+    if delta < -0.05:
+        return "Improving"
+    if delta > 0.05:
+        return "Worsening"
+    return "Stable"
