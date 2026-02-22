@@ -4,6 +4,8 @@ from app.schemas.patient import PatientCreate, PatientRead, PatientUpdate
 from app.core.database import get_supabase
 from loguru import logger
 from typing import List
+import uuid
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
 
@@ -12,9 +14,11 @@ router = APIRouter(prefix="/patients", tags=["Patients"])
 def create_patient(patient: PatientCreate, db: Client = Depends(get_supabase)):
     """Register a new patient profile."""
     data = patient.model_dump()
-    # Convert date to string for JSON serialisation
-    if data.get("date_of_birth"):
-        data["date_of_birth"] = str(data["date_of_birth"])
+    # Generate defaults that SQLAlchemy normally handles but Supabase client doesn't
+    now = datetime.now(timezone.utc).isoformat()
+    data["id"] = str(uuid.uuid4())
+    data["created_at"] = now
+    data["updated_at"] = now
     try:
         response = db.table("patients").insert(data).execute()
         return response.data[0]

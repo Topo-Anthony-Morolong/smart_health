@@ -23,9 +23,16 @@ def get_patient_alerts(
             .order("created_at", desc=True)
         )
         if unacknowledged_only:
-            query = query.eq("acknowledged", False)
+            query = query.eq("is_acknowledged", False)
         response = query.execute()
-        return response.data
+        
+        FE_SEV_MAP = {"high": "Warning", "critical": "Critical"}
+        alerts = response.data or []
+        for a in alerts:
+            a["severity"] = FE_SEV_MAP.get(a.get("severity"), "Warning")
+            a["acknowledged"] = a.get("is_acknowledged", False)
+            a["vital_reading_id"] = a.get("vital_id")
+        return alerts
     except Exception as e:
         logger.error(f"Error fetching alerts for {patient_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -37,13 +44,19 @@ def acknowledge_alert(alert_id: str, db: Client = Depends(get_supabase)):
     try:
         response = (
             db.table("alerts")
-            .update({"acknowledged": True})
+            .update({"is_acknowledged": True})
             .eq("id", alert_id)
             .execute()
         )
         if not response.data:
             raise HTTPException(status_code=404, detail="Alert not found")
-        return response.data[0]
+            
+        a = response.data[0]
+        FE_SEV_MAP = {"high": "Warning", "critical": "Critical"}
+        a["severity"] = FE_SEV_MAP.get(a.get("severity"), "Warning")
+        a["acknowledged"] = a.get("is_acknowledged", True)
+        a["vital_reading_id"] = a.get("vital_id")
+        return a
     except HTTPException:
         raise
     except Exception as e:
@@ -62,7 +75,14 @@ def get_all_alerts(limit: int = 50, db: Client = Depends(get_supabase)):
             .limit(limit)
             .execute()
         )
-        return response.data
+        
+        FE_SEV_MAP = {"high": "Warning", "critical": "Critical"}
+        alerts = response.data or []
+        for a in alerts:
+            a["severity"] = FE_SEV_MAP.get(a.get("severity"), "Warning")
+            a["acknowledged"] = a.get("is_acknowledged", False)
+            a["vital_reading_id"] = a.get("vital_id")
+        return alerts
     except Exception as e:
         logger.error(f"Error fetching all alerts: {e}")
         raise HTTPException(status_code=500, detail=str(e))

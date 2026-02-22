@@ -77,9 +77,9 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(application):
-    logger.info(f"🚀 {settings.APP_NAME} starting…")
+    logger.info(f" {settings.APP_NAME} starting…")
     yield
-    logger.info(f"🔴 {settings.APP_NAME} shutting down.")
+    logger.info(f" {settings.APP_NAME} shutting down.")
 
 # Attach lifespan to the app
 app.router.lifespan_context = lifespan

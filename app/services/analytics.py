@@ -43,7 +43,7 @@ def compute_analytics(patient_id: str, readings: List[Dict]) -> Dict[str, Any]:
 
 
 def _compute_averages(readings: List[Dict]) -> Dict[str, Optional[float]]:
-    fields = ["cholesterol", "hdl", "bp_systolic", "bp_diastolic", "weight", "glucose", "bmi", "risk_score"]
+    fields = ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic", "temperature", "oxygen_saturation", "risk_score"]
     result = {}
     for field in fields:
         vals = [r[field] for r in readings if r.get(field) is not None]
@@ -83,7 +83,7 @@ def _compute_trends(readings: List[Dict]) -> Dict[str, str]:
     first_half = readings[:mid]
     second_half = readings[mid:]
 
-    fields = ["cholesterol", "bp_systolic", "bp_diastolic", "risk_score", "weight"]
+    fields = ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic", "temperature", "oxygen_saturation", "risk_score"]
     trends = {}
 
     for field in fields:

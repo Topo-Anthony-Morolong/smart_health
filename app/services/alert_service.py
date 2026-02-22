@@ -1,5 +1,7 @@
 from loguru import logger
 from typing import Optional
+import uuid
+from datetime import datetime, timezone
 
 
 def create_alert_if_needed(
@@ -19,11 +21,14 @@ def create_alert_if_needed(
         return None
 
     record = {
+        "id": str(uuid.uuid4()),
         "patient_id": patient_id,
-        "vital_reading_id": vital_reading_id,
+        "vital_id": vital_reading_id,
+        "alert_type": "RiskThreshold",
+        "severity": "critical" if alert_info["severity"] == "Critical" else "high",
         "message": alert_info["message"],
-        "severity": alert_info["severity"],
-        "acknowledged": False,
+        "is_acknowledged": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
     try:
@@ -40,10 +45,11 @@ def create_alert_if_needed(
 
 def _evaluate_thresholds(risk_level: str, risk_score: float, vital_data: dict) -> Optional[dict]:
     """Return alert message and severity, or None if no alert needed."""
-    bp_s = vital_data.get("bp_systolic", 0)
-    bp_d = vital_data.get("bp_diastolic", 0)
-    chol = vital_data.get("cholesterol", 0)
-    glucose = vital_data.get("glucose") or 0
+    bp_s = vital_data.get("blood_pressure_systolic", 0)
+    bp_d = vital_data.get("blood_pressure_diastolic", 0)
+    hr = vital_data.get("heart_rate", 0)
+    spo2 = vital_data.get("oxygen_saturation", 100)
+    temp = vital_data.get("temperature", 36.5)
 
     # Critical hard thresholds (regardless of ML score)
     if bp_s >= 180 or bp_d >= 120:
@@ -54,11 +60,11 @@ def _evaluate_thresholds(risk_level: str, risk_score: float, vital_data: dict) -
                 "Immediate medical attention required."
             ),
         }
-    if glucose >= 300:
+    if spo2 <= 90:
         return {
             "severity": "Critical",
             "message": (
-                f"Critically high blood glucose: {glucose} mg/dL. "
+                f"Critically low oxygen saturation: {spo2}%. "
                 "Seek emergency care immediately."
             ),
         }
@@ -79,15 +85,15 @@ def _evaluate_thresholds(risk_level: str, risk_score: float, vital_data: dict) -
             "severity": "Warning",
             "message": f"Elevated blood pressure: {bp_s}/{bp_d} mmHg. Please contact your care team.",
         }
-    if chol >= 240:
+    if hr >= 110:
         return {
             "severity": "Warning",
-            "message": f"High cholesterol reading: {chol} mg/dL. Schedule a lipid review.",
+            "message": f"Elevated resting heart rate: {hr} bpm. Monitor closely.",
         }
-    if glucose >= 200:
+    if temp >= 38.5:
         return {
             "severity": "Warning",
-            "message": f"Elevated blood glucose: {glucose} mg/dL. Monitor closely and review medications.",
+            "message": f"High body temperature: {temp} °C. Suspected fever/infection.",
         }
 
     return None  # no alert needed

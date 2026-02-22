@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Text, DateTime, CheckConstraint
+from datetime import date, datetime, timezone
+from sqlalchemy import String, Text, DateTime, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from app.models.base import Base
 
 if TYPE_CHECKING:
@@ -15,19 +15,23 @@ if TYPE_CHECKING:
 
 class Patient(Base):
     __tablename__ = "patients"
-    __table_args__ = (
-        CheckConstraint("age > 0 AND age < 150", name="valid_age"),
-        CheckConstraint("gender IN ('male', 'female', 'other')", name="valid_gender"),
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    age: Mapped[int] = mapped_column(Integer, nullable=False)
-    gender: Mapped[str] = mapped_column(String(10), nullable=False)
-    contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    medical_history: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # New patient-profile fields
+    condition:    Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    doctor_name:  Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    phone:        Mapped[Optional[str]]  = mapped_column(String(50),  nullable=True)
+    notes:        Mapped[Optional[str]]  = mapped_column(Text,        nullable=True)
+    date_of_birth: Mapped[Optional[date]] = mapped_column(Date,       nullable=True)
+
+    # Legacy fields kept for backwards compatibility with existing rows
+    contact:         Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    medical_history: Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -49,10 +53,10 @@ class Patient(Base):
         return {
             "id": str(self.id),
             "name": self.name,
-            "age": self.age,
-            "gender": self.gender,
-            "contact": self.contact,
-            "medical_history": self.medical_history,
+            "condition": self.condition,
+            "doctor_name": self.doctor_name,
+            "phone": self.phone,
+            "notes": self.notes,
+            "date_of_birth": str(self.date_of_birth) if self.date_of_birth else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
