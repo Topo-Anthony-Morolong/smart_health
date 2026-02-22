@@ -1,77 +1,72 @@
 from fastapi import APIRouter, HTTPException, Depends
 from supabase import Client
-from app.schemas.patient import PatientCreate, PatientRead, PatientUpdate
+from app.schemas.vitals import VitalReading, VitalReadingOut, VitalHistoryEntry
 from app.core.database import get_supabase
+from app.services.risk_engine import calculate_risk
+from app.services.alert_service import create_alert_if_needed
 from loguru import logger
 from typing import List
+from datetime import datetime, timezone
 
-router = APIRouter(prefix="/patients", tags=["Patients"])
+router = APIRouter(prefix="/vitals", tags=["Vitals"])
 
 
-@router.post("/", response_model=PatientRead, status_code=201)
-def create_patient(patient: PatientCreate, db: Client = Depends(get_supabase)):
-    """Register a new patient profile."""
-    data = patient.model_dump()
-    # Convert date to string for JSON serialisation
-    if data.get("date_of_birth"):
-        data["date_of_birth"] = str(data["date_of_birth"])
+@router.post("/{patient_id}", response_model=VitalReadingOut, status_code=201)
+def submit_vitals(patient_id: str, vitals: VitalReading, db: Client = Depends(get_supabase)):
+    """
+    Submit a vital reading for a patient.
+    Runs ML risk scoring, stores the reading, and triggers an alert if thresholds are breached.
+    """
+    vital_data = vitals.model_dump()
+
+    # Run risk engine
+    risk_result = calculate_risk(vital_data)
+
+    record = {
+        **vital_data,
+        "patient_id": patient_id,
+        "risk_score": risk_result["risk_score"],
+        "risk_level": risk_result["risk_level"],
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
     try:
-        response = db.table("patients").insert(data).execute()
-        return response.data[0]
+        response = db.table("vital_readings").insert(record).execute()
+        saved = response.data[0]
     except Exception as e:
-        logger.error(f"Error creating patient: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Error saving vitals for {patient_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Trigger alert if needed
+    alert = create_alert_if_needed(
+        supabase=db,
+        patient_id=patient_id,
+        vital_reading_id=saved["id"],
+        risk_level=risk_result["risk_level"],
+        risk_score=risk_result["risk_score"],
+        vital_data=vital_data,
+    )
+
+    return {
+        **saved,
+        "recommendations": risk_result["recommendations"],
+        "alert_triggered": alert is not None,
+    }
 
 
-@router.get("/", response_model=List[PatientRead])
-def list_patients(db: Client = Depends(get_supabase)):
-    """List all registered patients."""
+@router.get("/{patient_id}", response_model=List[VitalHistoryEntry])
+def get_vital_history(patient_id: str, limit: int = 30, db: Client = Depends(get_supabase)):
+    """Retrieve the vital reading history for a patient."""
     try:
-        response = db.table("patients").select("*").order("created_at", desc=True).execute()
+        response = (
+            db.table("vital_readings")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .order("recorded_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
         return response.data
     except Exception as e:
-        logger.error(f"Error listing patients: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{patient_id}", response_model=PatientRead)
-def get_patient(patient_id: str, db: Client = Depends(get_supabase)):
-    """Get a single patient by ID."""
-    try:
-        response = db.table("patients").select("*").eq("id", patient_id).single().execute()
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Patient not found")
-        return response.data
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching patient {patient_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.patch("/{patient_id}", response_model=PatientRead)
-def update_patient(patient_id: str, updates: PatientUpdate, db: Client = Depends(get_supabase)):
-    """Update patient profile fields."""
-    data = {k: v for k, v in updates.model_dump().items() if v is not None}
-    if not data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    try:
-        response = db.table("patients").update(data).eq("id", patient_id).execute()
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Patient not found")
-        return response.data[0]
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating patient {patient_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/{patient_id}", status_code=204)
-def delete_patient(patient_id: str, db: Client = Depends(get_supabase)):
-    """Delete a patient profile."""
-    try:
-        db.table("patients").delete().eq("id", patient_id).execute()
-    except Exception as e:
-        logger.error(f"Error deleting patient {patient_id}: {e}")
+        logger.error(f"Error fetching vitals for {patient_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

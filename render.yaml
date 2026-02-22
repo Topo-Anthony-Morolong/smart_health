@@ -1,0 +1,23 @@
+services:
+  # A Docker web service descriptor
+  - type: web
+    name: smart-health-api
+    # Since we have a Dockerfile, Render will automatically use it
+    env: docker
+    # Determines when to scale instances
+    plan: free
+    region: frankfurt # Optional: deploy close to your Supabase instance
+    
+    # We list the environment variables your app needs
+    # Render will prompt you to provide these when you deploy
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_NAME
+        value: "Smart Health API"
+      - key: DEBUG
+        value: "False"

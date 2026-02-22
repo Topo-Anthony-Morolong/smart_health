@@ -70,6 +70,16 @@ def health_check():
     }
 
 
-@app.on_event("startup")
-def on_startup():
-    logger.info(f"🚀 {settings.APP_NAME} started.")
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(application):
+    logger.info(f"🚀 {settings.APP_NAME} starting…")
+    yield
+    logger.info(f"🔴 {settings.APP_NAME} shutting down.")
+
+# Attach lifespan to the app
+app.router.lifespan_context = lifespan
